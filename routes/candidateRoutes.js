@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/user');
-const Candidate = require('./../models/candidate');
+const Candidate = require('../models/candidate');
 const {jwtAuthMiddleware,generateToken} = require('../jwt');
 
 const checkAdminRole = async (userID) =>{
@@ -16,13 +16,13 @@ const checkAdminRole = async (userID) =>{
   }
 }
 
-
+// POST route to add a candidate
 router.post('/',jwtAuthMiddleware, async(req,res) =>{
   try{
     if(!(await checkAdminRole(req.user.id)))
       return res.status(403).json({message: 'user has not admin role'});
 
-    const data = req.body // Assuming the request body contains the user signup data
+    const data = req.body // Assuming the request body contains the candidate data
 
   // Create a new user singnup document using the mongoose model
   const newCandidate = new Candidate(data);
@@ -47,7 +47,7 @@ router.post('/',jwtAuthMiddleware, async(req,res) =>{
       const candidateID = req.params.candidateID; // Extract the id from the URL parameter
       const updatedCandidateData = req.body; // updated data for candidate
 
-      const response = await person.findByIdAndUpdate(candidateID,updatedCandidateData,{
+      const response = await Candidate.findByIdAndUpdate(candidateID,updatedCandidateData,{
         new:true, // Return the updated Document
         runValidators:true, // Run Mongoose validation
       })
@@ -82,7 +82,7 @@ router.post('/',jwtAuthMiddleware, async(req,res) =>{
     }
   })
 
-  // lets start voting
+  // let's start voting
 
   router.post('/vote/:candidateID', jwtAuthMiddleware, async (req,res)=>{
     //prerequisite
@@ -105,7 +105,7 @@ router.post('/',jwtAuthMiddleware, async(req,res) =>{
         return res.status(404).json({message:'user not found'});
       }
       if(user.role === 'admin'){
-        res.status(403).json({message:'admin is note allowed'});
+        res.status(403).json({message:'admin is not allowed'});
       }
       if(user.isVoted){
         res.status(400).json({message: 'you have already voted'})
@@ -148,6 +148,21 @@ router.post('/',jwtAuthMiddleware, async(req,res) =>{
       res.status(500).json({error: 'Internal server fatt gaya'});
     }
     
+  });
+
+
+  // Get List of all candidates with only name and party fields
+  router.get('/', async (req, res) => {
+    try {
+        // Find all candidates and select only the name and party fields, excluding _id
+        const candidates = await Candidate.find({}, 'name party -_id');
+
+        // Return the list of candidates
+        res.status(200).json(candidates);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
   });
 
   module.exports = router;

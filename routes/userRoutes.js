@@ -8,6 +8,25 @@ router.post('/signup', async(req,res) =>{
   try{
     const data = req.body // Assuming the request body contains the user signup data
 
+
+    // Check if there is already an admin user
+    const adminUser = await User.findOne({ role: 'admin' });
+    if (data.role === 'admin' && adminUser) {
+        return res.status(400).json({ error: 'Admin user already exists' });
+    }
+
+    // Validate Aadhar Card Number must have exactly 12 digit
+    if (!/^\d{12}$/.test(data.aadharCardNumber)) {
+        return res.status(400).json({ error: 'Aadhar Card Number must be exactly 12 digits' });
+    }
+
+    // Check if a user with the same Aadhar Card Number already exists
+    const existingUser = await User.findOne({ aadharCardNumber: data.aadharCardNumber });
+    if (existingUser) {
+        return res.status(400).json({ error: 'User with the same Aadhar Card Number already exists' });
+    }
+    
+
   // Create a new user singnup document using the mongoose model
   const newUser = new  User(data);
 
@@ -33,12 +52,17 @@ router.post('/login',async(req,res) =>{
     //Extract username and password from request body
     const {aadharCardNumber,password} = req.body;
 
+    // Check if aadharCardNumber or password is missing
+    if (!aadharCardNumber || !password) {
+      return res.status(400).json({ error: 'Aadhar Card Number and password are required' });
+    }
+
     // find the user by userName
     const user = await person.findOne({aadharCardNumber: username});
 
     // If user does not exist or password does not match. return error
     if(!user || !(await user.comparePassword(password))){
-      return res.status(401).json({error: 'Invalid username or password'});
+      return res.status(401).json({error: 'Invalid aadharcard number or password'});
     }
 
     // generate token
@@ -77,11 +101,16 @@ router.get('/profile',jwtAuthMiddleware,async (req,res) => {
       const userId = req.user; // Extract the id from the URL parameter
       const {currentPassword, newPassword} = req.body; // Extract the current and new password from request body.
      
+      // Check if currentPassword and newPassword are present in the request body
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Both currentPassword and newPassword are required' });
+      }
+
       // Find the user by user id.
       const user = await User.findById(userId);
 
       //if password does not match, return error
-      if(!(await user.comparePassword(currentPassword))){
+      if(!user || !(await user.comparePassword(currentPassword))){
         return res.status(401).json({error: 'Invalid username or password'})
       }
 
